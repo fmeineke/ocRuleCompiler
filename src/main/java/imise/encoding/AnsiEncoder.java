@@ -134,14 +134,11 @@ public class AnsiEncoder {
 
 	public static String replaceAllAnsi(String in) {
 		String out = "" + in;
-		for (Iterator<String> ansichars = ansiMap.keySet().iterator(); ansichars
-				.hasNext();) {
+		for (Iterator<String> ansichars = ansiMap.keySet().iterator(); ansichars.hasNext();) {
 			String readChar = (String) ansichars.next();
 			// System.out.println(readChar+ " is in "+out.contains(readChar));
 			out = out.replaceAll(readChar, ansiMap.get(readChar));
 		}
 		return out;
 	}
-	
-		
 }

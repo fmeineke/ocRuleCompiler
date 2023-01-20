@@ -1,17 +1,16 @@
 package imise.encoding;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AnsiEncoderTest {
 
 	@Test
 	public void testReplaceAllAnsi() {
-		String in = "fï¿½r einen test mit ï¿½ï¿½ï¿½ und ï¿½ï¿½ï¿½ und ï¿½ und weiteren kritischen ï¿½ ï¿½ Zeichen @ ï¿½";
+		String in = "für einen test mit äüö und é und ê und weiteren kritischen ÿ Zeichen @ ?";
 		String out = AnsiEncoder.replaceAllAnsi(in);
 		System.out.println(in);
 		System.out.println(out);
-		Assert.assertTrue(out.contains("&#252;"));
+		assertTrue(out.contains("&#252;"));
 	}
-
 }
