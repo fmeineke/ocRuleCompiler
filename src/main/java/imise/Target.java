@@ -14,26 +14,22 @@ import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-/*
- -  targetInSubgroup && !compInSubgroup dann Target[1], Comp, Regel "_1"
- -  targetInSubgroup &&  compInSubgroup dann Target, Comp, Regel 
- - !targetInSubgroup && !compInSubgroup dann Target, Comp, Regel 
- - !targetInSubgroup &&  compInSubgroup dann Target, Comp[1], Regel 
+/**
+ *  -  targetInSubgroup && !compInSubgroup dann Target[1], Comp, Regel "_1"
+ *  -  targetInSubgroup &&  compInSubgroup dann Target, Comp, Regel
+ *  - !targetInSubgroup && !compInSubgroup dann Target, Comp, Regel
+ *  - !targetInSubgroup &&  compInSubgroup dann Target, Comp[1], Regel
  */
-
 class Target {
+	final private HashMap<String, Item> items;
 	final Item targetItem;
 	private boolean targetInSubgroup = false;
 	private boolean compInSubgroup = false;
 	private Log log;
 	private String encoding;
+	List<Rule> ruleList = new LinkedList<>();
 
-	final private HashMap<String, Item> items;
-
-	List<Rule> ruleList = new LinkedList<Rule>();
-
-	Target(HashMap<String, Item> items, Item targetItem, Log log,
-			String encoding) {
+	Target(HashMap<String, Item> items, Item targetItem, Log log, String encoding) {
 		this.log = log;
 		this.encoding = encoding;
 		this.items = items;
@@ -43,6 +39,12 @@ class Target {
 		// + " " + targetInSubgroup);
 	}
 
+	/**
+	 * @param ruleImport Document
+	 * @return Size of rule list
+	 * @throws DOMException
+	 * @throws Exception
+	 */
 	int appendRuleDefs(Element ruleImport) throws DOMException, Exception {
 		Document doc = ruleImport.getOwnerDocument();
 		int i = 1;
@@ -73,6 +75,10 @@ class Target {
 		return ruleList.size();
 	}
 
+	/**
+	 * for every rule in a rule list
+	 * @param ruleImport Document
+	 */
 	void appendRuleAssignment(Element ruleImport) {
 		Document doc = ruleImport.getOwnerDocument();
 		Element ruleAssignment = doc.createElement("RuleAssignment");
@@ -84,10 +90,7 @@ class Target {
 		int i = 1;
 
 		for (Rule rule : ruleList) {
-			// String ruleOID =
-			// OCRead.item_prefix+targetItem.getName().toUpperCase() + i++;
 			String ruleOID = targetItem.getOID().toUpperCase() + "_" + i++;
-			// log.log("Target: Name:"+targetItem.getName().toUpperCase()+"\tOID: "+targetItem.getOID().toUpperCase()+"\t-> RuleOID:"+ruleOID);
 			if (targetInSubgroup && !compInSubgroup)
 				ruleOID += "_1";
 
@@ -98,11 +101,10 @@ class Target {
 			dna.setAttribute("IfExpressionEvaluates", "true");
 
 			Element message = doc.createElement("Message");
-			message.appendChild(doc.createTextNode((isAnsi()) ? AnsiEncoder
-					.replaceAllAnsi(rule.msg) : rule.msg));
+			message.appendChild(doc.createTextNode((isAnsi()) ? AnsiEncoder.replaceAllAnsi(rule.msg) : rule.msg));
 			ruleRef.appendChild(dna).appendChild(message);
 
-			if (rule.email != "") {
+			if (!rule.email.equals("")) {
 				Element ea = doc.createElement("EmailAction");
 				ea.setAttribute("IfExpressionEvaluates", "true");
 				Element to = doc.createElement("To");
@@ -120,8 +122,7 @@ class Target {
 	public String getCellAsString(Row row, int col) {
 		Cell cell = row.getCell(col);
 		cell.setCellType(CellType.STRING);
-		String s = cell.getStringCellValue().trim();
-		return s;
+		return cell.getStringCellValue().trim();
 	}
 
 	public void add(Row row, HashMap<String, Integer> header_rules, String email)
@@ -149,7 +150,7 @@ class Target {
 
 		if (ruleType == RuleType.EXPRESSION) {
 			// expression = comp;
-			String arr[] = comp.split(" ");
+			String[] arr = comp.split(" ");
 			for (int i = 0; i < arr.length; i++) {
 				String tok = arr[i];
 				Item item = items.get(tok);
@@ -182,7 +183,7 @@ class Target {
 				expression += " " + arr[i];
 
 		} else {
-			if (comp != "") {
+			if (!comp.equals("")) {
 				Item compItem = items.get(comp);
 				if (comp.contains("."))
 					compOID = comp.toUpperCase();
@@ -224,5 +225,4 @@ class Target {
 	private boolean isAnsi() {
 		return encoding.equals(OCRead.ENC_ISO_8859_1);
 	}
-
 }

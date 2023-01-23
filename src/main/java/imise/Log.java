@@ -2,12 +2,30 @@ package imise;
 
 import org.apache.poi.ss.usermodel.Row;
 
+/**
+ * Logging class with following log levels:
+ * 4 = everything, 3 = info = 2 = warn 1 = error
+ */
 public class Log {
-	//static int level = 4; // 4 = alles, 3 = info = 2 = warn 1 = error 
 
+	/**
+	 * Log level
+	 */
+	static int level = 4;
+
+	/**
+	 * Number of errors
+	 */
 	int numError = 0;
+
+	/**
+	 * Number of Warnings
+	 */
 	int numWarning = 0;
 
+	/**
+	 * True if there is a warning
+	 */
 	boolean warning = true;
 
 	public  int getNumError() {
@@ -16,17 +34,6 @@ public class Log {
 
 	public  int getNumWarning() {
 		return numWarning;
-	}
-
-	public void log(String msg, Row row, String type) {
-		log(msg, row, type, null);
-	}
-
-	public void log(String msg, Row row, String type, Exception e) {
-		System.out.println(type + " in \"" + row.getSheet().getSheetName()
-				+ "\" line " + (row.getRowNum() + 1) + ": " + msg);
-		if (e != null)
-			e.printStackTrace(System.out);
 	}
 
 	void log(String msg) {
@@ -44,9 +51,22 @@ public class Log {
 		}
 	}
 
-	public void error(String msg, Row row) {
-		log(msg, row, "error");
-		numError++;
+	public void log(String msg, Row row, String type) {
+		log(msg, row, type, null);
+	}
+
+	/**
+	 * Prints details of row to System.out
+	 * @param msg Log message
+	 * @param row Row of sheet
+	 * @param type Type
+	 * @param e Exception
+	 */
+	public void log(String msg, Row row, String type, Exception e) {
+		System.out.println(type + " in \"" + row.getSheet().getSheetName()
+				+ "\" line " + (row.getRowNum() + 1) + ": " + msg);
+		if (e != null)
+			e.printStackTrace(System.out);
 	}
 
 	public void error(String msg) {
@@ -56,6 +76,11 @@ public class Log {
 
 	public void error(String msg, Exception e) {
 		log(msg, "error", e);
+		numError++;
+	}
+
+	public void error(String msg, Row row) {
+		log(msg, row, "error");
 		numError++;
 	}
 
@@ -71,18 +96,6 @@ public class Log {
 		throw new Exception("fatal - aborted");
 	}
 
-	public void warning(String msg, Row row) {
-		if (warning)
-			log(msg, row, "warning");
-		numWarning++;
-	}
-
-	public void warning(String msg, Row row, Exception e) {
-		if (warning)
-			log(msg, row, "warning", e);
-		numWarning++;
-	}
-
 	public void warning(String msg) {
 		if (warning)
 			log(msg, "warning");
@@ -92,6 +105,18 @@ public class Log {
 	public void warning(String msg, Exception e) {
 		if (warning)
 			log(msg, "warning", e);
+		numWarning++;
+	}
+
+	public void warning(String msg, Row row) {
+		if (warning)
+			log(msg, row, "warning");
+		numWarning++;
+	}
+
+	public void warning(String msg, Row row, Exception e) {
+		if (warning)
+			log(msg, row, "warning", e);
 		numWarning++;
 	}
 

@@ -36,24 +36,64 @@ import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
+/**
+ * Main class that reads an xls file and generates an xml file for the rules and items ready to upload to Open Clinica
+ */
 public class OCRead {
+
 	static final String newline = System.getProperty("line.separator");
 	static final String ENC_ISO_8859_1 = "ISO-8859-1";
 	static final String ENC_UTF_8 = "UTF-8";
-	//	static final String version = "ocRuleCompiler version 2013-04-09 (C) F. Meineke, 2013-09-25 F. Rissner ";
-	static final String version = "ocRuleCompiler version 2016-06-02 (C) F. Meineke ";
 
+	/**
+	 * 2013-04-09 (C) F. Meineke, 2013-09-25 F. Rissner
+	 * 2016-06-02 (C) F. Meineke
+	 */
+	static final String version = "ocRuleCompiler version 2023-01-23 (C) F. Meineke, F. Ulbrich";
+
+	/**
+	 * Path of input file (.xls)
+	 */
 	String infile = null;
+
+	/**
+	 * Path of output file (.xml)
+	 */
 	String outfile = null;
+
 	HashMap<String, Integer> header_rules = new HashMap<String, Integer>();
-	// Für eine Spaltenüberschrift die numerische Spalte merken 
+
+	/**
+	 * Memorize numerical row for a row headline
+	 */
 	HashMap<String, Integer> header_items = new HashMap<String, Integer>();
+
+	/**
+	 * HashMap of all items
+	 */
 	HashMap<String, Item> items = new HashMap<String, Item>();
+
+	/**
+	 * Logging
+	 */
 	Log log = new Log();
+
+
 	private List<Target> targetList = new LinkedList<Target>();
 
+	/**
+	 * Study event OID
+	 */
 	private String eventOID;
+
+	/**
+	 * Case report form OID
+	 */
 	private String crfOID;
+
+	/**
+	 * OID of ungrouped items
+	 */
 	private String ungroupedOID;
 
 	private String groupPrefix;
@@ -63,10 +103,11 @@ public class OCRead {
 	private String encoding="ISO-8859-1";
 
 	private static String dbDriver = "oracle.jdbc.driver.OracleDriver";
-	// private String dbUrl;
-	// private String dbUsername;
-	// private String dbPassword;
-	// private String sourceSystem = "";
+	private String dbUrl;
+	private String dbUsername;
+	private String dbPassword;
+	private String sourceSystem = "";
+
 	private boolean update = false;
 	private boolean jsItems = false;
 	public static boolean useRulePrefix = false;
@@ -75,6 +116,14 @@ public class OCRead {
 
 	Connection conn = null;
 
+	/**
+	 * Main method
+	 * @param args Args
+	 */
+	public static void main(String[] args) {
+		new OCRead().start(args);
+	}
+
 	HashMap<String, Integer> getHeaderColumns(Row headerRow) throws Exception {
 		if (headerRow == null) {
 			log.fatal("expected Header Row is empty");
@@ -82,21 +131,14 @@ public class OCRead {
 		HashMap<String, Integer> header = new HashMap<String, Integer>();
 		for (int j = 0; j < headerRow.getLastCellNum(); j++) {
 			String h = headerRow.getCell(j).toString().trim().toUpperCase();
-			// Doofes Ende "*" entfernen 
+			// remove "*" at the end
 			if (h.endsWith("*")) 
 				h = h.substring(0, h.length()-1);
 			header.put(h, j);
 		}
 		return header;
 	}
-	//	String getCell(Sheet sheet,int row,String colname) throws Exception {
-	//		header_items = getHeaderColumns(sheet.getRow(0));
-	//		Row r = sheet.getRow(row);
-	//		Integer col = header_items.get(colname);
-	//		
-	//		if (col == null) col = header_items.get(colname+"*");
-	//		return r.getCell(col).toString();
-	//	}
+
 	void readItems(Workbook wb) throws Exception {
 		Sheet sheet = wb.getSheet("Items");
 		if (sheet == null) {
@@ -256,10 +298,9 @@ public class OCRead {
 		}
 	}
 
-	void writeRulesXML(PrintStream out, String sourceSystem, String now)
-			throws DOMException, Exception {
-		DocumentBuilderFactory docFactory = DocumentBuilderFactory
-				.newInstance();
+	void writeRulesXML(PrintStream out, String sourceSystem, String now) throws DOMException, Exception {
+
+		DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
 
 		// root elements
@@ -475,6 +516,9 @@ public class OCRead {
 		return list.toArray(a);
 	}
 
+	/**
+	 * Command prompt to show available options to the user
+	 */
 	void usage() {
 		log.log("usage: ocread "
 				+ "\n  [-utf|latin]   : output xml enconding, default is "
@@ -528,10 +572,13 @@ public class OCRead {
 	}
 
 	/**
+	 * @param dbUrl URL of the database
+	 * @param dbUsername Username for the database
+	 * @param dbPassword Password for the user
 	 * @return true if at minimum one change has been made
 	 */
-	boolean updateOIDfromDatabase(String dbUrl, String dbUsername,
-			String dbPassword) {
+	boolean updateOIDfromDatabase(String dbUrl, String dbUsername, String dbPassword) {
+
 		final String s = "select item.name as ITEM_NAME,item.oc_oid as ITEM_OID,item_group.name as \"GROUP\","
 				+ " item_group.oc_oid as GROUP_OID,crf.OC_OID as FORM_OID"
 				+ " from item_group_metadata,item,crf,item_group"
@@ -540,25 +587,22 @@ public class OCRead {
 				+ " and crf.OC_OID=?" // 'F_PCEB_BASELIN'"
 				+ " and item_group_metadata.item_group_id = item_group.item_group_id"
 				+ " and item.item_id = item_group_metadata.item_id";
-		if (dbUrl == null || dbUsername == null || dbPassword == null)
-			return false;
 
-		log.log("get OID from database (" + dbUrl + " with user " + dbUsername
-				+ ")");
+		if (dbUrl == null || dbUsername == null || dbPassword == null) return false;
+		log.log("get OID from database (" + dbUrl + " with user " + dbUsername + ")");
 		boolean update = false;
+
 		try {
 			Class.forName(dbDriver);
 			conn = DriverManager.getConnection(dbUrl, dbUsername, dbPassword);
 			conn.setAutoCommit(false);
-
 			PreparedStatement pStmt = conn.prepareStatement(s);
 			pStmt.setString(1, crfOID);
 			ResultSet rset = pStmt.executeQuery();
 			while (rset.next()) {
 				Item item = items.get(rset.getString("ITEM_NAME"));
 				if (item != null) {
-					if (item.update(rset.getString("ITEM_OID"),
-							rset.getString("GROUP_OID")))
+					if (item.update(rset.getString("ITEM_OID"), rset.getString("GROUP_OID")))
 						update = true;
 				}
 				// log.log(update+": Item changes to:"+item.getName()+" -> "+item.getOID()+"");
@@ -569,9 +613,5 @@ public class OCRead {
 			log.error(e.getMessage());
 		}
 		return update;
-	}
-
-	public static void main(String[] args) {
-		new OCRead().start(args);
 	}
 }

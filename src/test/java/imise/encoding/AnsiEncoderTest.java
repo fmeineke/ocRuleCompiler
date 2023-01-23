@@ -12,5 +12,6 @@ public class AnsiEncoderTest {
 		System.out.println(in);
 		System.out.println(out);
 		assertTrue(out.contains("&#252;"));
+		assertTrue(out.contains("&#234;"));
 	}
 }

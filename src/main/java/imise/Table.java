@@ -8,10 +8,29 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
+/**
+ * Utility class to work with an xls document
+ */
 public class Table  {
+
+	/**
+	 * Sheet in xls document
+	 */
 	Sheet sheet;
+
+	/**
+	 * Stores columns
+	 */
 	HashMap<String,Integer> head = new HashMap<String,Integer>();
+
+	/**
+	 * Row of sheet
+	 */
 	Row row;
+
+	/**
+	 * Row index
+	 */
 	int rowIndex;
 	
 	String getString(int r,String column) {
