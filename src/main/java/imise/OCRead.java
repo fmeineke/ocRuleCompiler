@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -73,12 +72,7 @@ public class OCRead {
 	 */
 	HashMap<String, Item> items = new HashMap<String, Item>();
 
-	/**
-	 * Logging
-	 */
 	Log log = new Log();
-
-
 	private List<Target> targetList = new LinkedList<Target>();
 
 	/**
@@ -110,30 +104,137 @@ public class OCRead {
 
 	private boolean update = false;
 	private boolean jsItems = false;
+
+	/**
+	 * true: rulePrefix = itemPrefix
+	 * false: rulePrefix = ""
+	 */
 	public static boolean useRulePrefix = false;
 	public static String rulePrefix = "";
 	public static String item_prefix = "";
 
 	Connection conn = null;
 
-	/**
-	 * Main method
-	 * @param args Args
-	 */
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 		new OCRead().start(args);
 	}
 
+	/**
+	 * Basically main class
+	 * Reads input parameters from commandline and tries to connect to a given db if necessary.
+	 * Then, transforms input xls to workbook and reads OIds, rules and items.
+	 * Then, writes results to xml
+	 * @param args Parameter given with the specified flags via command line
+	 */
+	public void start(String[] args) {
+
+		String dbUrl = null;
+		String dbUsername = null;
+		String dbPassword = null;
+		String sourceSystem = "";
+
+		log.log(version);
+
+		for (int i = 0; i < args.length; i++) {
+			switch (args[i]) {
+				case "-utf" -> encoding = ENC_UTF_8;
+				case "-latin" -> encoding = ENC_ISO_8859_1;
+				case "-url" -> dbUrl = args[++i];
+				case "-user" -> dbUsername = args[++i];
+				case "-password" -> dbPassword = args[++i];
+				case "-driver" -> dbDriver = args[++i];
+				case "-source" -> sourceSystem = args[++i];
+				case "-items" -> jsItems = true;
+				case "-o" -> outfile = args[++i];
+				case "-update" -> update = true;
+				case "-prefix" -> useRulePrefix = true;
+				case "-nowarnings" -> log.warning = false;
+			}
+			if(infile == null) infile = args[i];
+		}
+
+		String now = java.text.DateFormat.getDateTimeInstance().format(Calendar.getInstance().getTime());
+
+		try {
+			if (dbUrl != null && dbUsername != null && dbPassword != null) {
+				log.log("connect to database");
+				Class.forName(dbDriver);
+				conn = DriverManager.getConnection(dbUrl, dbUsername, dbPassword);
+				conn.setAutoCommit(false);
+			}
+			if (jsItems) {
+				// ============ Items.js ==============================
+				PrintStream f = new PrintStream("items.js");
+				log.log("write items.js");
+				annotatedCRF(f, sourceSystem, now);
+			} else {
+				// ============ Rulecompiler ==========================
+				if (infile == null) printCommandLineOptionsToConsole();
+				if (outfile == null) outfile = infile.replace(".xls", sourceSystem + "-rules.xml");
+				log.log("read " + infile);
+				InputStream inp = new FileInputStream(infile);
+				Workbook wb = WorkbookFactory.create(inp);
+				inp.close();
+				wb.setMissingCellPolicy(Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+				readRulesOID(wb);
+				log.log("readRulesOID done");
+				// read "Items" and internally add OID columns
+				readItems(wb);
+				log.log("readItems done");
+
+				if (updateOIDfromDatabase(dbUrl, dbUsername, dbPassword)) {
+					log.log("updateOIDfromDatabase done");
+					log.log("update " + infile);
+					updateOIDTable(wb);
+					log.log("updateOIDTable done");
+					if (update) {
+						try (FileOutputStream f = new FileOutputStream(infile)) {
+							wb.write(f);
+						}
+						log.log("write OIDs to Excel done");
+					}
+				} else {
+					log.log("no update of OIDs needed; database entries are equal");
+				}
+
+				readRules(wb);
+				log.log("readRules done");
+				PrintStream out = outfile.equals("-") ? System.out : new PrintStream(outfile, encoding);
+				log.log("writing " + outfile);
+				writeRulesXML(out, sourceSystem, now);
+			}
+
+			if (conn != null)
+				conn.close();
+
+		} catch (Exception e) {
+			log.error(e.getMessage());
+			e.printStackTrace();
+		}
+		String[] cleaned = stripArgs(args);
+		log.log("'" + this.getClass().getSimpleName() + "' called with params: " + Arrays.toString(cleaned));
+		log.log(" returnes with " + log.getNumError() + " error"
+				+ (log.getNumError() == 1 ? "" : "s") + " "
+				+ log.getNumWarning() + " warning"
+				+ (log.getNumWarning() == 1 ? "" : "s"));
+		if (log.getNumWarning() > 0 && !log.warning)
+			log.log("RECOMMENDATION: retry without switch '-nowarnings'");
+	}
+
+	/**
+	 * @param headerRow Top row of the workbook
+	 * @return Hashmap with column names and their position
+	 * @throws Exception
+	 */
 	HashMap<String, Integer> getHeaderColumns(Row headerRow) throws Exception {
 		if (headerRow == null) {
 			log.fatal("expected Header Row is empty");
 		}
-		HashMap<String, Integer> header = new HashMap<String, Integer>();
+		HashMap<String, Integer> header = new HashMap<>();
 		for (int j = 0; j < headerRow.getLastCellNum(); j++) {
 			String h = headerRow.getCell(j).toString().trim().toUpperCase();
 			// remove "*" at the end
-			if (h.endsWith("*")) 
-				h = h.substring(0, h.length()-1);
+			if (h.endsWith("*")) h = h.substring(0, h.length()-1);
 			header.put(h, j);
 		}
 		return header;
@@ -165,17 +266,13 @@ public class OCRead {
 
 			String itemName = r.getCell(header_items.get("ITEM_NAME")).toString();
 			String responseValues = r.getCell(header_items.get("RESPONSE_VALUES_OR_CALCULATIONS")).toString();
-			String dataType = r.getCell(header_items.get("DATA_TYPE"))
-					.toString();
-			String groupLabel = r.getCell(header_items.get("GROUP_LABEL"))
-					.toString();
-			if (groupLabel.isEmpty())
-				groupLabel = "UNGROUPED";
-			String description = r.getCell(
-					header_items.get("DESCRIPTION_LABEL")).toString();
+			String dataType = r.getCell(header_items.get("DATA_TYPE")).toString();
+			String groupLabel = r.getCell(header_items.get("GROUP_LABEL")).toString();
+			if (groupLabel.isEmpty()) groupLabel = "UNGROUPED";
+			String description = r.getCell(header_items.get("DESCRIPTION_LABEL")).toString();
 
 			if (responseValues.matches(".*_[0-9]*"))
-				log.warning("Unn�tige Versionierung: " + responseValues, r);
+				log.warning("Unnecessary versioning: " + responseValues, r);
 			if (responseValues.matches("([0-9][0-9]*[, ]*)+")
 					&& !dataType.equals("INT"))
 				log.warning("data type could be INT " + responseValues, r);
@@ -202,51 +299,55 @@ public class OCRead {
 		}
 	}
 
+	/**
+	 * Reads Event-OID, CRF-OID an Ungrouped-OID from the workbook an sets group prefix, item prefix and rule prefix
+	 * @param wb Excel workbook with OpenClinica rules
+	 * @throws Exception
+	 */
 	void readRulesOID(Workbook wb) throws Exception {
 		Sheet sheet = wb.getSheet("Rules");
-		if (sheet == null)
-			log.fatal("no Rules sheet");
+		if (sheet == null){
+			log.fatal("o rules sheet");
+		} else {
+			HashMap<String, Integer> header_oid = getHeaderColumns(sheet.getRow(0));
+			if (!header_oid.containsKey("EVENT_OID"))
+				log.fatal("EVENT_OID missing in Rules");
+			if (!header_oid.containsKey("CRF_OID"))
+				log.fatal("CRF_OID missing in Rules");
+			if (!header_oid.containsKey("UNGROUPED_OID"))
+				log.fatal("UNGROUPED_OID missing in Rules");
 
-		HashMap<String, Integer> header_oid = getHeaderColumns(sheet.getRow(0));
+			eventOID = sheet.getRow(1).getCell(header_oid.get("EVENT_OID")).toString();
+			crfOID = sheet.getRow(1).getCell(header_oid.get("CRF_OID")).toString();
+			ungroupedOID = sheet.getRow(1).getCell(header_oid.get("UNGROUPED_OID")).toString();
 
-		if (!header_oid.containsKey("EVENT_OID"))
-			log.fatal("EVENT_OID missing in Rules");
-		if (!header_oid.containsKey("CRF_OID"))
-			log.fatal("CRF_OID missing in Rules");
-		if (!header_oid.containsKey("UNGROUPED_OID"))
-			log.fatal("UNGROUPED_OID missing in Rules");
+			if (!ungroupedOID.endsWith("_UNGROUPED"))
+				log.warning("UNGROUPED does not end with \"_UNGROUPED\" in Rules");
 
-		// z.B. SE_TO
-		eventOID = sheet.getRow(1).getCell(header_oid.get("EVENT_OID"))
-				.toString();
-		// z.B. F_RET0
-		crfOID = sheet.getRow(1).getCell(header_oid.get("CRF_OID")).toString();
-		// z.B. IG_PSFM__UNGROUPED
-		ungroupedOID = sheet.getRow(1).getCell(header_oid.get("UNGROUPED_OID"))
-				.toString();
+			if (!ungroupedOID.startsWith("IG_"))
+				log.warning("UNGROUPED does not start with \"IG_\" in Rules");
 
-		if (!ungroupedOID.endsWith("_UNGROUPED"))
-			log.warning("UNGROUPED does not end with \"_UNGROUPED\" in Rules");
-		if (!ungroupedOID.startsWith("IG_"))
-			log.warning("UNGROUPED does not start with \"IG_\" in Rules");
+			int l = "UNGROUPED".length();
+			groupPrefix = ungroupedOID.substring(0, ungroupedOID.length() - l);
+			itemPrefix = "I" + ungroupedOID.substring(2, ungroupedOID.length() - l);
 
-		int l = "UNGROUPED".length();
-		// z.B. IG_PSFM__
-		groupPrefix = ungroupedOID.substring(0, ungroupedOID.length() - l);
-		// z.B. I_PSFM
-		itemPrefix = "I" + ungroupedOID.substring(2, ungroupedOID.length() - l);
-		if (useRulePrefix) rulePrefix = itemPrefix; else rulePrefix = "";
-		item_prefix = itemPrefix;
+			if (useRulePrefix) rulePrefix = itemPrefix; else rulePrefix = "";
+			item_prefix = itemPrefix;
+		}
 	}
 
+	/**
+	 * Iterates over all rows
+	 * @param wb Excel workbook with OpenClinica rules
+	 * @throws Exception
+	 */
 	void readRules(Workbook wb) throws Exception {
 		String target;
 		String prevTarget = null;
 		Target targetElement = null;
 
 		Sheet sheet = wb.getSheet("Rules");
-		if (sheet == null)
-			log.fatal("no \"Rules\" sheet");
+		if (sheet == null) log.fatal("no \"Rules\" sheet");
 
 		header_rules = getHeaderColumns(sheet.getRow(3));
 
@@ -254,25 +355,20 @@ public class OCRead {
 
 		for (int i = firstRow; i <= sheet.getLastRowNum(); i++) {
 			Row row = sheet.getRow(i);
-			if (row == null)
-				continue;
+			if (row == null) continue;
+			String itemName = row.getCell(header_rules.get("ITEM_NAME")).toString();
 
-			String itemName = row.getCell(header_rules.get("ITEM_NAME"))
-					.toString();
-			if (itemName.isEmpty())
+			if (itemName.isEmpty()) {
 				target = prevTarget;
-			else {
+			} else {
 				target = itemName;
 			}
-			if (prevTarget != target) {
+
+			if (prevTarget.equals(target)) {
 				Item targetItem = items.get(target);
 				if (targetItem == null) {
-
-					log.warning("didn't find '" + target
-							+ "'; checking whether it has unique id added", row);
-					for (Iterator<String> iterator = items.keySet().iterator(); iterator
-							.hasNext();) {
-						String type = (String) iterator.next();
+					log.warning("didn't find '" + target + "'; checking whether it has unique id added", row);
+					for (String type : items.keySet()) {
 						if (target.startsWith(type)) {
 							targetItem = items.get(type);
 						}
@@ -285,15 +381,16 @@ public class OCRead {
 				targetElement = new Target(items, targetItem, log, encoding);
 				targetList.add(targetElement);
 			}
+
 			prevTarget = target;
 
 			if (!items.containsKey(target)) {
 				log.error(target + " found in Rules but not in Items", row);
 				continue;
 			}
+
 			String email = "";
-			if (header_rules.get("EMAIL") != null)
-				email = row.getCell(header_rules.get("EMAIL")).toString();
+			if (header_rules.get("EMAIL") != null) email = row.getCell(header_rules.get("EMAIL")).toString();
 			targetElement.add(row, header_rules, email);
 		}
 	}
@@ -342,8 +439,7 @@ public class OCRead {
 		// transformerFactory.setAttribute("indent-number", 4);
 
 		Transformer transformer = transformerFactory.newTransformer();
-		transformer.setOutputProperty(
-				"{http://xml.apache.org/xslt}indent-amount", "3");
+		transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "3");
 		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 		transformer.setOutputProperty(OutputKeys.STANDALONE, "yes");
 		transformer.setOutputProperty(OutputKeys.ENCODING, encoding);
@@ -351,147 +447,6 @@ public class OCRead {
 		DOMSource source = new DOMSource(doc);
 		StreamResult result = new StreamResult(out);
 		transformer.transform(source, result);
-
-	}
-
-	public void start(String[] args) {
-		String dbUrl = null;
-		String dbUsername = null;
-		String dbPassword = null;
-		String sourceSystem = "";
-
-		log.log(version);
-		for (int i = 0; i < args.length; i++) {
-			if (args[i].equals("-utf")) {
-				encoding = ENC_UTF_8;
-			} else if (args[i].equals("-latin")) {
-				encoding = ENC_ISO_8859_1;
-			} else if (args[i].equals("-url")) {
-				dbUrl = args[++i];
-			} else if (args[i].equals("-user")) {
-				dbUsername = args[++i];
-			} else if (args[i].equals("-password")) {
-				dbPassword = args[++i];
-			} else if (args[i].equals("-driver")) {
-				dbDriver = args[++i];
-			} else if (args[i].equals("-source")) {
-				sourceSystem = args[++i];
-			} else if (args[i].equals("-items")) {
-				jsItems = true;
-			} else if (args[i].equals("-o")) {
-				outfile = args[++i];
-			} else if (args[i].equals("-update")) {
-				update = true;
-			} else if (args[i].equals("-prefix")) {
-				useRulePrefix = true;
-			} else if (args[i].equals("-nowarnings")) {
-				log.warning = false;
-			} else if (infile == null) {
-				infile = args[i];
-			}
-		}
-		String now = java.text.DateFormat.getDateTimeInstance().format(
-				Calendar.getInstance().getTime());
-		try {
-			if (dbUrl != null && dbUsername != null && dbPassword != null) {
-				log.log("connect to database");
-				Class.forName(dbDriver);
-				conn = DriverManager.getConnection(dbUrl, dbUsername,
-						dbPassword);
-				conn.setAutoCommit(false);
-			}
-			if (jsItems) {
-				// ============ Items.js ==============================
-				PrintStream f = new PrintStream("items.js");
-				log.log("write items.js");
-				annotatedCRF(f, sourceSystem, now);
-
-			} else {
-				// ============ Rulecompiler ==========================
-				if (infile == null)
-					usage();
-				if (outfile == null) {
-					outfile = infile.replace(".xls", sourceSystem
-							+ "-rules.xml");
-				}
-
-				log.log("read " + infile);
-				InputStream inp = new FileInputStream(infile);
-				Workbook wb = WorkbookFactory.create(inp);
-				inp.close();
-				wb.setMissingCellPolicy(Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-
-				readRulesOID(wb);
-				log.log("readRulesOID done");
-				// "Items" auslesen, intern OID Spalten ergänzen
-				readItems(wb);
-				log.log("readItems done");
-
-				if (updateOIDfromDatabase(dbUrl, dbUsername, dbPassword)) {
-					log.log("updateOIDfromDatabase done");
-					log.log("update " + infile);
-					updateOIDTable(wb);
-					log.log("updateOIDTable done");
-					if (update) {
-						try (FileOutputStream f = new FileOutputStream(infile)) {
-							wb.write(f);
-						}
-						log.log("write OIDs to Excel done");
-					}
-				} else {
-					log.log("no update of OIDs needed; database entries are equal");
-				}
-
-				readRules(wb);
-				log.log("readRules done");
-
-				PrintStream out = outfile.equals("-") ? System.out
-						: new PrintStream(outfile, encoding);
-
-				log.log("writing " + outfile);
-				writeRulesXML(out, sourceSystem, now);
-
-				//				Mist versteh ich nicht mehr...
-				//				if (encoding.equals(ENC_ISO_8859_1)) {
-				//					// encodierte Ampersands (&amp; -> &) korrigieren ...
-				//					// wird ben�tigt zur korrekten Darstellung der per
-				//					// AnsiEncoder ersetzten Sonderzeichen
-				//					String outfileenc = outfile.replace("-rules.xml",
-				//							"-rules-enc.xml");
-				//					System.out.println("postprocessing XML-File to "
-				//							+ outfileenc);
-				//					FileReader fr = new FileReader(outfile);
-				//					FileWriter fw = new FileWriter(outfileenc);
-				//					BufferedReader br = new BufferedReader(fr);
-				//					BufferedWriter bw = new BufferedWriter(fw);
-				//					String line = br.readLine();
-				//					while (line != null) {
-				//						bw.write(line.replaceAll("amp;#", "#"));
-				//						bw.newLine();
-				//						line = br.readLine();
-				//					}
-				//					bw.flush();
-				//					fw.close();
-				//					fr.close();
-				//				}
-			}
-
-			if (conn != null)
-				conn.close();
-
-		} catch (Exception e) {
-			log.error(e.getMessage());
-			e.printStackTrace();
-		}
-		String[] cleaned = stripArgs(args);
-		log.log("'" + this.getClass().getSimpleName()
-				+ "' called with params: " + Arrays.toString(cleaned));
-		log.log(" returnes with " + log.getNumError() + " error"
-				+ (log.getNumError() == 1 ? "" : "s") + " "
-				+ log.getNumWarning() + " warning"
-				+ (log.getNumWarning() == 1 ? "" : "s"));
-		if (log.getNumWarning() > 0 && !log.warning)
-			log.log("RECOMMENDATION: retry without switch '-nowarnings'");
 
 	}
 
@@ -510,7 +465,6 @@ public class OCRead {
 					|| string.toUpperCase().equals("-PASSWORD")) {
 				next = true;
 			}
-
 		}
 		String[] a = new String[0];
 		return list.toArray(a);
@@ -519,7 +473,7 @@ public class OCRead {
 	/**
 	 * Command prompt to show available options to the user
 	 */
-	void usage() {
+	void printCommandLineOptionsToConsole() {
 		log.log("usage: ocread "
 				+ "\n  [-utf|latin]   : output xml enconding, default is "
 				+ encoding
@@ -549,8 +503,7 @@ public class OCRead {
 		}
 	}
 
-	void annotatedCRF(PrintStream out, String sourceSystem, String now)
-			throws SQLException {
+	void annotatedCRF(PrintStream out, String sourceSystem, String now) throws SQLException {
 		final String s = "select item_id,name from item order by item_id";
 		try (PreparedStatement pStmt = conn.prepareStatement(s)) {
 			ResultSet rset = pStmt.executeQuery();

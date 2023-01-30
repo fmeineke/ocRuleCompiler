@@ -35,11 +35,10 @@ class Target {
 		this.items = items;
 		this.targetItem = targetItem;
 		targetInSubgroup = !targetItem.getGroup().equals("UNGROUPED");
-		// System.out.println(targetItem.getName() + " " + targetItem.getGroup()
-		// + " " + targetInSubgroup);
 	}
 
 	/**
+	 *
 	 * @param ruleImport Document
 	 * @return Size of rule list
 	 * @throws DOMException
@@ -49,8 +48,7 @@ class Target {
 		Document doc = ruleImport.getOwnerDocument();
 		int i = 1;
 		for (Rule rule : ruleList) {
-			String ruleName = OCRead.item_prefix
-					+ targetItem.getName().toUpperCase() + i;
+			String ruleName = OCRead.item_prefix + targetItem.getName().toUpperCase() + i;
 			String ruleOID = targetItem.getOID().toUpperCase() + "_" + i;
 			i++;
 			if (targetInSubgroup && !compInSubgroup) {
@@ -66,8 +64,7 @@ class Target {
 					.replaceAllAnsi(rule.msg) : rule.msg));
 
 			Element expression = doc.createElement("Expression");
-			expression.appendChild(doc.createTextNode(rule.expr(targetItem
-					.getOID())));
+			expression.appendChild(doc.createTextNode(rule.expr(targetItem.getOID())));
 			ruleDef.appendChild(description);
 			ruleDef.appendChild(expression);
 			ruleImport.appendChild(ruleDef);

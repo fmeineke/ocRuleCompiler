@@ -7,34 +7,61 @@ package imise;
  */
 class Rule {
 
+	/**
+	 * used to point at current line of the Excel sheet
+	 */
 	int line;
 
 	/**
-	 * Comparison OID
+	 * Comparison OID in accordance with OpenClinica
 	 */
 	String compOID;
 
+	/**
+	 * Comparison expression, e.g "eq 0" or "ne 3"
+	 */
 	private String val;
 
 	/**
-	 * Minimal value
+	 * Minimal value, numerical
 	 */
 	String min;
 
 	/**
-	 * Maximum value
+	 * Maximum value, numerical
 	 */
 	String max;
 
 	/**
-	 * Message
+	 * Column RULE_ERROR_MESSAGE, $n is replaced by DESCRIPTION_LABEL of ITEM_NAME from the sheet ITEMS
 	 */
 	String msg;
 
+	/**
+	 * false if expression starts with not
+	 */
 	String eval;
+
+	/**
+	 * Free expression in OpenClinica syntax
+	 * Note: put group prefix before ITEM and in parenthesis to set values
+	 */
 	String expression;
-	enum RuleType { AFTER,BEFORE, ASSERT,REQUIRED,EMPTY,EXPRESSION,RANGE };
+
+	/**
+	 * AFTER: Date has to be at least "min" after or at the most "max" (days) after "comp"
+	 * BEFORE: Date has to be at least "min" before ar at the most "max" (days) before "comp"
+	 * Note: Calculating dates is not officially supported with OpenClinica 3.0
+	 * ASSERT:
+	 * REQUIRED: Value must not be empty if comp has val, without comp/val not much use
+	 * EMPTY:
+	 * EXPRESSION:
+	 * RANGE:
+	 */
+	enum RuleType { AFTER, BEFORE, ASSERT, REQUIRED, EMPTY, EXPRESSION, RANGE };
+
 	RuleType ruleType;
+
 	String email;
 
 	/**

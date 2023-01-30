@@ -9,7 +9,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
 /**
- * Utility class to work with an xls document
+ * Utility class to work with an xls document (currently no used?)
  */
 public class Table  {
 
