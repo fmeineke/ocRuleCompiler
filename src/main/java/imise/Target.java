@@ -168,13 +168,6 @@ class Target {
 					}
 				}
 			}
-			/*
-			 * for (int i = 0; i < arr.length; i++) { Item item =
-			 * items.get(arr[i]); if (item != null) { if
-			 * (targetItem.getGroupOID().equals(item.getGroupOID())) arr[i] =
-			 * item.getOID(); else { arr[i] = item.getGroupOID() + "." +
-			 * item.getOID(); } } }
-			 */
 			expression = arr[0];
 			for (int i = 1; i < arr.length; i++)
 				expression += " " + arr[i];
