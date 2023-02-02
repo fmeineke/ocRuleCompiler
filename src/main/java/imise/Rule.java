@@ -130,6 +130,8 @@ class Rule {
 				if (compOID.isEmpty()) compOID=target;
 				compOID = compOID.toUpperCase();
 				if (val.isEmpty()) throw new Exception(line + ": val is empty");
+
+				// zahlen pattern wird gesucht und soll benutzt werden, aber in anführungszeichen setzen regextreffer ist $1
 				val = val.replaceFirst(" ([0-9]+)"," \"$1\"");
 				r = compOID + " " + val;
 				break;

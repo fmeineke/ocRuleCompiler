@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>
 <!--Generator: ocRuleCompiler version 2023-01-23 (C) F. Meineke, F. Ulbrich
-    Inputfile: src/test/ressources/Demo_v3.9.xls
-         User: ulbri
-         Date: 02.02.2023, 00:27:29
+    Inputfile: src/test/resources/Demo_v3.9.xls
+         User: florian
+         Date: 02.02.2023, 11:34:58
 --><RuleImport>
    <RuleAssignment>
       <Target Context="OC_RULES_V1">SE_AUSSCHLUSS.F_DEMORULECRF.IG_DEMOR_UNGROUPED.I_DEMOR_OP</Target>
