@@ -60,8 +60,8 @@ class Target {
 			ruleDef.setAttribute("OID", ruleOID);
 
 			Element description = doc.createElement("Description");
-			description.appendChild(doc.createTextNode((isAnsi()) ? AnsiEncoder
-					.replaceAllAnsi(rule.msg) : rule.msg));
+			//description.appendChild(doc.createTextNode((isAnsi()) ? AnsiEncoder.replaceAllAnsi(rule.msg) : rule.msg));
+			description.appendChild(doc.createTextNode(rule.msg));
 
 			Element expression = doc.createElement("Expression");
 			expression.appendChild(doc.createTextNode(rule.expr(targetItem.getOID())));
@@ -98,7 +98,8 @@ class Target {
 			dna.setAttribute("IfExpressionEvaluates", "true");
 
 			Element message = doc.createElement("Message");
-			message.appendChild(doc.createTextNode((isAnsi()) ? AnsiEncoder.replaceAllAnsi(rule.msg) : rule.msg));
+			//message.appendChild(doc.createTextNode((isAnsi()) ? AnsiEncoder.replaceAllAnsi(rule.msg) : rule.msg));
+			message.appendChild(doc.createTextNode(rule.msg));
 			ruleRef.appendChild(dna).appendChild(message);
 
 			if (!rule.email.equals("")) {
@@ -197,8 +198,7 @@ class Target {
 		msg = msg.replaceAll("\\$n", "\"" + targetItem.getDescription() + "\"");
 		Item compItem = items.get(comp);
 		if (compItem != null) {
-			msg = msg.replaceAll("\\$c", "\"" + compItem.getDescription()
-					+ "\"");
+			msg = msg.replaceAll("\\$c", "\"" + compItem.getDescription() + "\"");
 		}
 		msg = msg.replaceAll("<", "&lt;");
 

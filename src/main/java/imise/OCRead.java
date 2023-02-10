@@ -44,7 +44,7 @@ public class OCRead {
 	 * 2013-04-09 (C) F. Meineke, 2013-09-25 F. Rissner
 	 * 2016-06-02 (C) F. Meineke
 	 */
-	static final String version = "ocRuleCompiler version 2023-01-23 (C) F. Meineke, F. Ulbrich";
+	static final String version = "ocRuleCompiler version 2023-02-10 (C) F. Meineke, F. Ulbrich";
 
 	/**
 	 * Path of input file (.xls)
@@ -94,9 +94,6 @@ public class OCRead {
 
 	private String sourceSystem = "";
 
-	private boolean update = false;
-	private boolean jsItems = false;
-
 	/**
 	 * true: rulePrefix = itemPrefix
 	 * false: rulePrefix = ""
@@ -126,9 +123,7 @@ public class OCRead {
 				case "-utf" -> encoding = ENC_UTF_8;
 				case "-latin" -> encoding = ENC_ISO_8859_1;
 				case "-source" -> sourceSystem = args[++i];
-				case "-items" -> jsItems = true;
 				case "-o" -> outfile = args[++i];
-				case "-update" -> update = true;
 				case "-prefix" -> useRulePrefix = true;
 				case "-nowarnings" -> log.warning = false;
 			}
@@ -384,11 +379,7 @@ public class OCRead {
 				+ " rules.");
 
 		// write the content into xml file
-		TransformerFactory transformerFactory = TransformerFactory
-				.newInstance();
-		// transformerFactory.setAttribute("indent-number", new Integer(4));
-		// transformerFactory.setAttribute("indent-number", 4);
-
+		TransformerFactory transformerFactory = TransformerFactory.newInstance();
 		Transformer transformer = transformerFactory.newTransformer();
 		transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "3");
 		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
@@ -430,8 +421,6 @@ public class OCRead {
 				+ encoding
 				+ "\n  [-nowarnings]  : suppresses warnings"
 				+ "\n  [-o <name>.xml : output, default is <name>-rules.xml, '-' is stdout"
-				+ "\n  [-update]      : if set, xls is rewritten with OID"
-				+ "\n  [-items]       : only create item.js for annotated CRF"
 				+ "\n  [-prefix]      : prefix rule OID with group prefix"
 				+ "\n  [-source]      : name of SourceSystem; used in outputfiles"
 				+ "\n  <name>.xls     : OpenClinica Excel Sheet");
