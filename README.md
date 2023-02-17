@@ -14,7 +14,7 @@ This README documents what is necessary to get application up and running.
 * Upload the rules to OpenClinica/LibreClinica (Tasks -> Build Study -> in column Create Rules click the "+" -> upload the rules.xml).
 
 ## Notes ##
-* Standard encoding is `ISO-8859-1` which supports Ä,Ö,Ü and other special characters.
+* Standard encoding is `ISO-8859-1` which supports Ã„,Ã–,Ãœ and other special characters.
 * You can encode the rules.xml in UTF-8 if you add `-utf` at the end of the command.
 * With UTF-8 encoding, umlauts are not shown properly in OpenClinica/LibreClinica.
 * Need help with the CRF.xls? Under src/test/resources you can find an example.
@@ -29,7 +29,7 @@ This README documents what is necessary to get application up and running.
 * `git clone https://fmeineke@github.com/fmeineke/ocRuleCompiler.git`
 * `cd ocRuleCompiler`
 * `mvn clean package -Dmaven.test.skip=true` will build target/ocRuleCompiler.jar and copy dependencies to target/lib.
-* Start the batch shell with `java -jar target/ocRuleCompiler-1.0.jar`.
+* Start the batch shell with `java -jar target/ocRuleCompiler-2.0.jar`.
 
 ## Contribution guidelines ##
 
